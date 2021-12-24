@@ -1,0 +1,1108 @@
+---
+title: "Analisi"
+output: html_document
+---
+# github https://github.com/LucaDaniel11/EsameFondamenti.git
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r library}
+# librerie utilizzate:
+
+  library(tidyverse)
+  library(dplyr)
+  library(stringr)
+  library(ggplot2)
+  library(plotly)
+  library(gganimate)
+  library(readxl)
+# install.packages("shiny")
+  library(shiny)
+  library(readr)
+  library(dplyr)
+  library(ggplot2)
+  library(modelr)
+```
+
+Esame Fondamenti Di Scienza Dei Dati
+Analisi:
+CASO DI STUDIO: NETFLIX data with IMDB scores added
+Data Set contenente tutte le informazioni relativi ai video multimediali, compresi i valori assegnati dal IMDB, dei film/Tv Show della piattaforma Netflix
+IMDB -> Internet Movie DataBase che è un sito web di proprietà di Amazon che gestiste informazioni su film,attori, registi, programmi televisivi etc...
+
+```{r import, message = FALSE}
+#lettura del data set "netflixRating.csv"
+netflix <- read_csv("netflixRating.csv")
+#rappresentazione in output del tipo delle colonne del data set netflix
+spec(netflix)
+```
+
+Mi sono posto diverse domande per analizzare questo caso di studio:
+1) Il rating dei film/Tv Show è “influenzato” dalla durata di quest’ultimo? ESEMPIO: Movie e TV Show
+2) I film vecchi sono più quotati rispetto a quelli nuovi?
+3) Su netflix quale "genere" è più seguito? ESEMPIO: Movie vs TV Show 
+4) Che genere di film viene più apprezzato? 
+5) Che genere di TV Show viene più apprezzato?
+6) Lo Stato in cui è stato registrato il film/serie influenza sull'assegnazione del rating?
+
+```{r}
+# per il fine di alcune domande ho sfruttato le due categorie principali presenti nel dataset e salvate in due variabili distinte. Questo mi serve principalmente per avere una idea # generale di come è composto il dataset che sto analizzando.
+# Le variabili Movie e Tv_Show: 
+# Movie che contiene tutti i film presenti nel dataset, raggruppati per duration con relativa media del rating
+Movie <-
+netflix%>%
+    filter(type == "Movie")%>%
+    group_by(duration)%>%
+    summarise(median_rating = median(rating))
+#Tv_Show che contiene tutti i Tv Show presenti nel dataset, raggruppati per duration con relativa media del rating
+Tv_Show <-
+  netflix%>%
+  filter(type == "TV Show")%>%
+  group_by(duration)%>%
+  summarise(median_rating = median(rating))
+
+#SEPARAZIONE DEL DATO DURATA PER ENTRAMBI I "GRUPPI" PER TRASFORMARE IL DATO DURATA IN INTERO(VEDERE COMANDO SOPRA spec(netflix)).
+#Effettuo una separazione della colonna duration in NUMERO INTERO Durata e char Descrizione
+Tv_Show<-
+separate(Tv_Show,duration,into = c("Season","Descrizione"),sep=" ")
+#eliminazione colonna descrizione, essendo una specificazione del dato intero futile, siccome sappiamo già che per i film parliamo di durata in minuti mentre per gli show in season
+Tv_Show$Descrizione <- NULL
+#trasformazione in intero per tv_Show
+Tv_Show <-
+transform(Tv_Show,Season = as.numeric(Season)) 
+#Stesso procedimento per movie con separazione delle colonna
+Movie <-
+  separate(Movie,duration, into = c("Durata","Descrizione"),sep=" ")
+Movie$Descrizione <- NULL
+#trasformazione in intero per Movie
+Movie <-
+transform(Movie,Durata = as.numeric(Durata)) 
+#visualizzazione dei valori all'interno della due variabili
+View(Movie)
+View(Tv_Show)
+
+
+```
+
+#Il rating dei film/Tv Show è "influenzato" dalla durata di quest'ultimo? 
+
+```{r}
+# Domanda 1: Il rating dei film/Tv Show è "influenzato" dalla durata di quest'ultimo? ESEMPIO: Movie e TV Show 
+
+# massimo e minimo del rating dei film presenti nel data set
+
+# Il procedimento è analogo per tutte e due le analisi e consiste nel controllare la corettezza dei dati rappresentandoli per ordine crescente per la loro durata.
+# Successivamente viene effettuata una rappresentazione grafica per rappresentare il risultato.
+
+# rating range [0.0 - 10.0]
+max(netflix$rating)  # 9.7
+min(netflix$rating)  # 0.0
+#--------TV SHOW--------
+#TABELLA SHOW con ordinamento crescente
+ShowOrdinati <-
+Tv_Show%>%
+  arrange(Season)%>%
+  select(Season,median_rating)
+#VISUALIZZAZIONE dei Tv Show ordinati per durata Season (Crescente)
+View(ShowOrdinati)
+#VISUALIZZAZIONE DEL GRAFICO
+ggplot(ShowOrdinati,aes(Season,median_rating)) + 
+  geom_line(size=1,color="steelblue")+
+  theme_linedraw()+
+  labs(
+    title="Caso TV SHOW",
+    subtitle="RatingXLunghezza"
+  )+
+  xlab("Season")+
+  ylab("Rating")
+#--------MOVIE--------
+#TABELLA Movie con ordinamento crescente
+MovieOrdinati <-
+ Movie%>%
+  arrange(Durata)%>%
+  select(Durata,median_rating)
+#VISUALIZZAZIONE dei film ordinati per durata (Crescente)
+View(MovieOrdinati)
+# VISUALIZZAZIONE DEL GRAFICO
+ggplot(MovieOrdinati,aes(Durata,median_rating)) + 
+  geom_line(size=0.5)+
+  theme_bw()+
+  labs(
+    title = "Caso Movie",
+    subtitle = "RatingXLunghezza"
+  )+
+  xlab("Durata")+
+  ylab("Rating")
+
+# le due variabili ordinate servono sia per rispondere la prima domanda che per vedere sempre come è composto il dataset. Soprattutto per vedere se ci sono delle incosistenze o 
+# errori nei dati all'interno del dataset (come nel caso dei rating a valore 0 nel caso dei movie). Alla  fine di questo controllo, ho interpretato la presenza di valori del rating
+# 0 come il loro rating effettivo. Perchè soltanto i movie con breve durata hanno questa "anomalia", quindi può essere interpretato come una possibile risposta della domanda  che
+# mi sono posto.
+```
+
+#I film vecchi sono più quotati rispetto a quelli nuovi?
+
+```{r}
+# Domanda 2: I film vecchi sono più quotati rispetto a quelli nuovi?
+
+# Per questa analisi viene preso in considerazione solo il genere film, vengono inoltre effettuate diverse rappresentazioni grafiche per analizzare il problema.
+# Olre alle rappresentazioni grafiche viene calcolata la predizione dei rating.
+# Per rispondere ad una parte della domanda viene inoltre effettuato un raggrupamento per anni di rilascio del film ( per decadi ) e rappresentato in output.
+
+# viene applicato un filtro solo per selezionare i Movie
+#raggruppamento per anno con relativa media del rating
+
+MovieXDataRilascio<-
+netflix%>%
+  filter(type=="Movie")%>%
+  group_by(release_year)%>%
+    summarise(median_rating = median(rating))
+
+#visualizzazione
+View(MovieXDataRilascio)
+
+#rappresentazione grafico
+ggplot(data = MovieXDataRilascio,mapping = aes(x=release_year,y=median_rating)) +
+  geom_point()+
+  geom_smooth(se = FALSE)+
+  labs(
+    title = "Andamento successo film nella storia",
+    x = "Anno di uscita",
+    y = "Rating medio"
+  )+ 
+  theme_classic()
+
+
+#scatter plot, correlazione negativa
+
+ggplot(MovieXDataRilascio,aes(release_year,median_rating))+
+  geom_point()
+#imposto linear model , voglio studiare l'impatto di median_Rating su release year
+mod1 = lm(median_rating ~ release_year,data=MovieXDataRilascio)
+#model (all information)
+summary(mod1)
+#abbiamo la chiamata,  residui, minimo massima 1-Mediana-3 quartile
+# coefficente di determinazione 0.1691, quindi il modello utilizzato offre una spiegazione dei dati non migliore del valore medio
+
+# coefficients
+mod1$coefficients
+
+
+# visualizing the model
+ggplot(MovieXDataRilascio,aes(release_year,median_rating))+
+  geom_point()+
+  geom_abline(intercept = mod1$coefficients[1],
+              slope = mod1$coefficients[2],
+              color = "red"
+              )
+
+# correlation coefficient
+(r = cor(MovieXDataRilascio$release_year, MovieXDataRilascio$median_rating))
+
+# coefficient of determination
+summary(mod1)$r.squared
+
+#testing con residui
+
+
+prova <- MovieXDataRilascio
+
+
+#prendiamo i dati in maniera equispaziato, griglia con valori x= release_year
+(grid <- data_grid(prova,release_year))
+
+# add values predicted by the model over the grid
+(grid <- add_predictions(grid, mod1))
+
+ggplot(prova, aes(x = release_year)) +
+  geom_point(aes(y = median_rating)) + # observed values
+  geom_line(data = grid, mapping = aes(y = pred), colour = "red") # predicted values
+
+# add predictions to the model
+(prova <- add_predictions(prova, mod1))
+
+# add residuals to the model
+(prova <- add_residuals(prova, mod1))
+#possiedo la variabile esplicativa,risposta,predizione e residui
+
+
+# histogram of residuals (mean is always 0)
+ggplot(prova, aes(resid)) + 
+  geom_freqpoly(binwidth = 0.5)
+
+# scatterplot of residuals (plot residuals as outcomes)
+ggplot(prova, aes(release_year, resid)) + 
+  geom_ref_line(h = 0) +
+  geom_point() 
+
+
+# calcolo per decadi
+# filtraggio dei movie
+TabDecade<-
+netflix%>%
+  filter(type=="Movie")%>%
+  group_by(release_year)%>%
+    summarise(Tot=n(),rating = median(rating))
+View(TabDecade)
+    
+# assegno anno al proprio decade
+TabDecade<-TabDecade%>%
+  mutate(decade = floor(release_year/10)*10) %>%
+  group_by(decade)
+#primo calcolo per la media ponderata    
+TabDecade<-TabDecade%>%
+  group_by(decade)%>%
+  mutate(calcolo=(Tot*rating))
+# eliminazione colonne inutili per il calcolo
+TabDecade$release_year<-NULL
+TabDecade$rating<-NULL
+#tabella finale con la media ponderata per decade
+RappresentazioneFinale<-TabDecade%>%
+  group_by(decade)%>%
+  mutate(Media=(1/sum(Tot)*sum(calcolo)))%>%
+  select(decade,Media)
+#tolgo i duplicati
+RappresentazioneFinale<-unique(RappresentazioneFinale)
+#trasformazione in dataframe per essere sicuri che sia un dataframe
+RappresentazioneFinale<- as.data.frame(RappresentazioneFinale)
+
+ #approssimazione a due cifre decimali
+  RappresentazioneFinale<-
+  RappresentazioneFinale%>%
+    mutate(Media=round(Media,digits = 2))%>%
+    select(decade,Media)
+#rappresentazione a grafico 
+plot(RappresentazioneFinale)  
+
+
+
+```
+
+#Su netflix quale "genere" è più seguito? ESEMPIO: Movie vs TV Show
+
+```{r}
+# Domanda 3: Su netflix quale "genere" è più seguito? ESEMPIO: Movie vs TV Show
+
+# Per questa domanda vengono calcolate le rispettive medie dei rating per il rispettivo Genere. Dopodiché viene eseguita una rappresentazione boxplot tramite shiny,
+# dove vengono rappresentati i due generi presenti nel caso di studi.
+
+# ottengo i rating medi dei due generi 
+genere<-
+netflix%>%
+  group_by(type)%>%
+  summarise(rating = median(rating))
+#visualizzazione del rating medio tra i due generi 
+genere
+#Visualizzazione grafica boxplot normale
+ggplot(netflix,aes(x=type, y = rating))+
+  geom_boxplot()+
+  theme_minimal()+
+  labs(
+    title="Movie VS Tv Show"
+  )+
+  xlab("Genere")+
+  ylab("Rating")
+
+
+#Visualizzazione grafica boxplot con shiny
+ui <- fluidPage(
+  titlePanel("Boxplot Analysis"),
+  sidebarLayout(
+    sidebarPanel(
+      #Genere Input
+     selectInput("type","Type",
+                 choices = list("Movie","TV Show","All"),
+                 selected="All")
+    ),
+    mainPanel(
+      plotOutput("boxPlot")
+    )
+  )
+)
+server <- function(input,output){
+  output$boxPlot <- renderPlot({
+   if(input$type == "All"){
+     dataset <- netflix%>%
+                select(type,rating)
+   }else{
+     dataset <- netflix%>%
+       filter(type==input$type)%>% 
+           select(type,rating)     
+   }
+    #draw the box plot
+    ggplot(dataset,aes(x=type,y=rating))+
+      geom_boxplot()+
+      theme_minimal()+
+      xlab("Genere")+
+      ylab("Rating")
+})
+}
+shinyApp(ui = ui, server = server)
+
+```
+
+#Che genere di film viene più apprezzato?
+
+```{r}
+
+# Domanda 4: Che genere di film viene più apprezzato?
+
+# in primis abbiamo un problema da risolvere, nonchè quello di gestire il caso nella quale il nostro Movie o TV Show ha più categorie.
+# Per gestire questo problema ho deciso di considerare che se un film ha più di un elemento nell'elenco listed_in, e.g [Children & Family Movies, Comedies]
+# considero quel film due volte col il rating assegnato "duplicato". Cioè quando effettuerò un raggrupamento per quella determinata categoria verrà contanto due volte
+# una per Children & Family Movies e una per Comedies. Analizzando il data set ho notato che un film può avere al massimo tre elementi nell'elenco
+# alla fine dell' analisi di questo caso effettuerò una media ponderata dei tre gruppi che verranno raggruppati in un unico gruppo
+
+
+  ElencoListed <-
+    netflix$listed_in
+  #separazione del possibile elenco multiplo che era raggrupato nel dataset netflix sotto la colonna listed_in
+  ElencoListed<-str_split_fixed(ElencoListed, ",", 3)
+  # Funzioni per verificare se un oggetto è un frame di dati o per forzarlo se possibile.
+  ElencoListed<-as.data.frame(ElencoListed)
+  # View(ElencoListed) visualizzazione del nostro nuovo elenco
+  View(ElencoListed)
+  # aggiornamento id, imposto un id semplice per effettuare join futuri
+  ElencoListed<-
+    ElencoListed%>%
+      mutate(id=1:nrow(ElencoListed))%>%
+      select(id,everything())
+  # arrivato qua ho ottenuto un data set che mi ha risolto per il momento l'elenco unico nel dataset orgininale
+  
+  #da qua in poi lavoro con una copia del Data Set originale per evitare errori 
+  copiaDataSet <- netflix
+  #View(copiaDataSet) visualizzazione della copia del DataSet
+  #deleto colonna id e listed_in (siccome abbiamo i dati in ElencoListed)
+  copiaDataSet$show_id <- NULL
+  copiaDataSet$listed_in <- NULL
+  #aggiungo id a copia
+  copiaDataSet <-
+    copiaDataSet %>%
+    mutate(id=1:nrow(copiaDataSet))%>%
+    select(id,everything())
+  #inner join tramite id per aggiungere rating
+  ElencoListed<-left_join(ElencoListed,copiaDataSet)
+  #eliminazione colonne che non servono
+  ElencoListed<-
+    ElencoListed[-c(5,6,7,8,9,10,11,13,14)]
+  #View(ElencoListed)
+  #rinomino le colonne di ElencoListed
+  colnames(ElencoListed)<- c("id","listed_in1","listed_in2","listed_in3","rating")
+  #inner join, salvando in copiaDataSet
+  copiaDataSet<-
+  inner_join(copiaDataSet,ElencoListed) # by id
+  #filtro per film
+  copiaDataSet<-
+  copiaDataSet%>%
+    filter(type=="Movie")%>%
+    select(everything())
+  
+  #operazioni per lavorare in maniera isolata sul caso descritto all'inzio
+  
+  #copiaDataSet
+  confrontoCopia1<-
+    copiaDataSet%>%
+    group_by(listed_in1)%>%
+    summarise(count = n(),media=median(rating))
+  #View(confrontoCopia1)
+  confrontoCopia2<-
+    copiaDataSet%>%
+    filter(listed_in2!="")%>%
+    group_by(listed_in2)%>%
+    summarise(count = n(),media=median(rating))
+  #View(confrontoCopia2)
+  confrontoCopia3<-
+  copiaDataSet%>%
+    filter(listed_in3!="")%>%
+    group_by(listed_in3)%>%
+    summarise(count = n(),media=median(rating))
+  #View(confrontoCopia3)
+  #zona join
+  #cambio il titolo delle colonne di ogni caso isolato
+  # nomino count1-2-3 per evitare che il join usi quelle colonne
+  # lascio solo listed_in come colonna in comune
+
+  colnames(confrontoCopia1)<- c("listed_in","count1","media1")
+  colnames(confrontoCopia2)<- c("listed_in","count2","media2")
+  colnames(confrontoCopia3)<- c("listed_in","count3","media3")
+  
+  # problema attuale: la colonna  listed_in di copia2 e 3 non sono uguali a quella di copia1, perchè hanno uno spazio
+  # davanti, questo dovuto all'operazione di separazione effettuata precedentemente
+  # prima con problema
+  confrontoCopia2$listed_in[1]
+  confrontoCopia3$listed_in[1]
+  
+  #rimozione spazio davanti per confronto2 e confronto3
+  confrontoCopia2<-
+    confrontoCopia2%>%
+    select(listed_in,count2,media2)%>%
+    mutate(listed_in = substr(confrontoCopia2$listed_in,2,nchar(confrontoCopia2$listed_in)))
+
+  confrontoCopia3<-
+    confrontoCopia3%>%
+    select(listed_in,count3,media3)%>%
+    mutate(listed_in = substr(confrontoCopia3$listed_in,2,nchar(confrontoCopia3$listed_in)))
+
+  # dopo senza problema
+  confrontoCopia2$listed_in[1]
+  confrontoCopia3$listed_in[1]
+  
+  
+  #join tabella finale con i casi uniti
+  TabellaCasiUniti <- full_join(confrontoCopia1,confrontoCopia2)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti,confrontoCopia3)
+
+  View(TabellaCasiUniti)
+  #gestione dei valori NA trasformandoli in 0
+  TabellaCasiUniti<- 
+      mutate_all(TabellaCasiUniti, ~replace(.,is.na(.),0))
+  
+  #media ponderata
+  TabellaCasiUniti<-
+    TabellaCasiUniti%>%
+    mutate(Totale = count1+count2+count3, Media_Ponderata=(1/Totale)*((count1*media1)+(count2*media2)+(count3*media3)))%>%
+    select(listed_in:media3,Totale,Media_Ponderata)
+   
+  #eliminazione colonne inutili
+  TabellaCasiUniti <- TabellaCasiUniti[-c(2:7)]
+  
+   #approsimazione alla seconda cifra
+   TabellaCasiUniti<-
+      TabellaCasiUniti%>%
+      mutate(Media_Ponderata=round(Media_Ponderata,digits = 2))%>%
+      select(listed_in,Totale,Media_Ponderata)
+  
+  
+  #data set con numero totale di trasmissioni trasmesse per tipologia e loro rating 
+  View(TabellaCasiUniti)
+  
+  #INFORMAZIONI AGGIUNTIVE
+  
+  #ottengo la "trasmissione" che è stata più apprezzata + quante trasmissioni ha trasmesso + rating
+  TabellaCasiUniti%>%
+    filter(Media_Ponderata==max(TabellaCasiUniti$Media_Ponderata))%>%
+    select(listed_in,Totale,Media_Ponderata)
+ # Classic Movies	84	7.42	
+
+  # categoria con più trasmissioni
+    TabellaCasiUniti%>%
+       filter(Totale==max(TabellaCasiUniti$Totale))%>%
+       select(listed_in,Totale,Media_Ponderata)
+    
+  #International Movies	1927	6.59	
+    
+ # quella meno apprezzata + totale trasmissioni + rating
+    TabellaCasiUniti%>%
+       filter(Media_Ponderata==min(TabellaCasiUniti$Media_Ponderata))%>%
+       select(listed_in,Totale,Media_Ponderata)
+    
+  #Horror Movies	262	5.78	  
+    
+    # categoria con meno trasmissioni
+    TabellaCasiUniti%>%
+       filter(Totale==min(TabellaCasiUniti$Totale))%>%
+       select(listed_in,Totale,Media_Ponderata)
+    
+  #Anime Features	45	7.18	
+    
+  #grafico barplot normale
+plot<-ggplot(TabellaCasiUniti,aes(x=listed_in,y=Media_Ponderata))+
+       geom_bar(stat="identity",fill="steelblue",width=0.5)+
+      theme(axis.text.x=element_text(angle= 90,hjust = 1, vjust =.5))+
+      xlab("Cartegoria")+
+      ylab("Media Rating")+
+      labs(
+        title = "Rating x Categorie"
+      )
+#grafico interattivo che con il cursore posso vedere i rating singoli
+ggplotly(plot)
+
+ #TENTATIVO di generazione gif, basta  unire le immagini che ci fornisce il seguente codice
+ # vedremo una colonna alla volta comparire e sparire
+  #ggplot(TabellaCasiUniti,aes(x=listed_in,y=Media_Ponderata))+
+   #    geom_bar(stat="identity",fill="steelblue")+
+   #    transition_states(listed_in)+
+   #    shadow_mark() 
+  
+```
+
+#Che genere di TV Show viene più apprezzato?
+
+```{r}
+
+# Domanda 5: Che genere di TV Show viene più apprezzato?
+
+#Ho usato le stesse precondizioni della domanda 4
+
+
+  ElencoListed <-
+    netflix$listed_in
+  #separazione del possibile elenco multiplo che era raggrupato nel dataset netflix sotto la colonna listed_in
+  ElencoListed<-str_split_fixed(ElencoListed, ",", 3)
+  # Funzioni per verificare se un oggetto è un frame di dati o per forzarlo se possibile.
+  ElencoListed<-as.data.frame(ElencoListed)
+  # View(ElencoListed) visualizzazione del nostro nuovo elenco
+  View(ElencoListed)
+  # aggiornamento id, imposto un id semplice per effettuare join futuri
+  ElencoListed<-
+    ElencoListed%>%
+      mutate(id=1:nrow(ElencoListed))%>%
+      select(id,everything())
+  # arrivato qua ho ottenuto un data set che mi ha risolto per il momento l'elenco unico nel dataset orgininale
+  
+  #da qua in poi lavoro con una copia del Data Set originale per evitare errori 
+  copiaDataSet <- netflix
+  #View(copiaDataSet) visualizzazione della copia del DataSet
+  #deleto colonna id e listed_in (siccome abbiamo i dati in ElencoListed)
+  copiaDataSet$show_id <- NULL
+  copiaDataSet$listed_in <- NULL
+  #aggiungo id a copia
+  copiaDataSet <-
+    copiaDataSet %>%
+    mutate(id=1:nrow(copiaDataSet))%>%
+    select(id,everything())
+  #inner join tramite id per aggiungere rating
+  ElencoListed<-left_join(ElencoListed,copiaDataSet)
+  #eliminazione colonne che non servono
+  ElencoListed<-
+    ElencoListed[-c(5,6,7,8,9,10,11,13,14)]
+  #View(ElencoListed)
+  #rinomino le colonne di ElencoListed
+  colnames(ElencoListed)<- c("id","listed_in1","listed_in2","listed_in3","rating")
+  #inner join, salvando in copiaDataSet
+  copiaDataSet<-
+  inner_join(copiaDataSet,ElencoListed) # by id
+  #filtro per TV Show
+  copiaDataSet<-
+  copiaDataSet%>%
+    filter(type=="TV Show")%>%
+    select(everything())
+  
+  #operazioni per lavorare in maniera isolata sul caso descritto all'inzio
+  
+  #copiaDataSet
+  confrontoCopia1<-
+    copiaDataSet%>%
+    group_by(listed_in1)%>%
+    summarise(count = n(),media=median(rating))
+  #View(confrontoCopia1)
+  confrontoCopia2<-
+    copiaDataSet%>%
+    filter(listed_in2!="")%>%
+    group_by(listed_in2)%>%
+    summarise(count = n(),media=median(rating))
+  #View(confrontoCopia2)
+  confrontoCopia3<-
+  copiaDataSet%>%
+    filter(listed_in3!="")%>%
+    group_by(listed_in3)%>%
+    summarise(count = n(),media=median(rating))
+  #View(confrontoCopia3)
+  #zona join
+  #cambio il titolo delle colonne di ogni caso isolato
+  # nomino count1-2-3 per evitare che il join usi quelle colonne
+  # lascio solo listed_in come colonna in comune
+
+  colnames(confrontoCopia1)<- c("listed_in","count1","media1")
+  colnames(confrontoCopia2)<- c("listed_in","count2","media2")
+  colnames(confrontoCopia3)<- c("listed_in","count3","media3")
+  
+  # problema attuale: la colonna  listed_in di copia2 e 3 non sono uguali a quella di copia1, perchè hanno uno spazio
+  # davanti, questo dovuto all'operazione di separazione effettuata precedentemente
+  # prima con problema
+  confrontoCopia2$listed_in[1]
+  confrontoCopia3$listed_in[1]
+  
+  #rimozione spazio davanti per confronto2 e confronto3
+  confrontoCopia2<-
+    confrontoCopia2%>%
+    select(listed_in,count2,media2)%>%
+    mutate(listed_in = substr(confrontoCopia2$listed_in,2,nchar(confrontoCopia2$listed_in)))
+
+  confrontoCopia3<-
+    confrontoCopia3%>%
+    select(listed_in,count3,media3)%>%
+    mutate(listed_in = substr(confrontoCopia3$listed_in,2,nchar(confrontoCopia3$listed_in)))
+
+  # dopo senza problema
+  confrontoCopia2$listed_in[1]
+  confrontoCopia3$listed_in[1]
+  
+  
+  #join tabella finale con i casi uniti
+  TabellaCasiUniti <- full_join(confrontoCopia1,confrontoCopia2)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti,confrontoCopia3)
+
+  View(TabellaCasiUniti)
+  #gestione dei valori NA trasformandoli in 0
+  TabellaCasiUniti<- 
+      mutate_all(TabellaCasiUniti, ~replace(.,is.na(.),0))
+  
+  #media ponderata
+  TabellaCasiUniti<-
+    TabellaCasiUniti%>%
+    mutate(Totale = count1+count2+count3, Media_Ponderata=(1/Totale)*((count1*media1)+(count2*media2)+(count3*media3)))%>%
+    select(listed_in:media3,Totale,Media_Ponderata)
+   
+  #eliminazione colonne inutili
+  TabellaCasiUniti <- TabellaCasiUniti[-c(2:7)]
+
+  #approsimazione alla seconda cifra decimale
+   TabellaCasiUniti<-
+      TabellaCasiUniti%>%
+      mutate(Media_Ponderata=round(Media_Ponderata,digits = 2))%>%
+      select(listed_in,Totale,Media_Ponderata)
+  
+  #data set con numero totale di trasmissioni trasmesse per tipologia e loro rating 
+  View(TabellaCasiUniti)
+  
+  #ottengo la "trasmissione" che è stata più apprezzata
+  TabellaCasiUniti%>%
+    filter(Media_Ponderata==max(TabellaCasiUniti$Media_Ponderata))%>%
+    select(listed_in,Media_Ponderata,Totale)
+
+  # Classic & Cult TV	8.22	24	
+  
+  #ottengo la "trasmissione" che è stata meno apprezzata
+  TabellaCasiUniti%>%
+    filter(Media_Ponderata==min(TabellaCasiUniti$Media_Ponderata))%>%
+    select(listed_in,Media_Ponderata,Totale)
+  
+  # Stand-Up Comedy & Talk Shows	5.9	42	
+  
+  #categoria con più trasmissioni:
+  
+  TabellaCasiUniti%>%
+    filter(Totale==max(TabellaCasiUniti$Totale))%>%
+    select(listed_in,Totale,Media_Ponderata)
+  
+  # International TV Shows	1001	7.43
+  
+   #categoria con meno trasmissioni:
+  
+  TabellaCasiUniti%>%
+    filter(Totale==min(TabellaCasiUniti$Totale))%>%
+    select(listed_in,Totale,Media_Ponderata)
+  
+  # TV Shows	10	6.1	
+  
+  #grafico barplot normale
+  
+plot<-ggplot(TabellaCasiUniti,aes(x=listed_in,y=Media_Ponderata))+
+       geom_bar(stat="identity",fill="steelblue",width=0.5)+
+      theme(axis.text.x=element_text(angle= 90,hjust = 1, vjust =.5))+
+      xlab("Cartegoria")+
+      ylab("Media Rating")+
+      labs(
+        title = "Rating x Categorie"
+      )
+#grafico interattivo che con il cursore posso vedere i rating singoli
+ggplotly(plot)
+
+```
+
+#Lo Stato in cui è stato registrato il film/serie influenza sull'assegnazione del rating?
+
+```{r}
+#funzioni utilizzate:
+inserimentoID <- function(x){
+  x%>%
+    mutate(id=1:nrow(x))%>%
+      select(id,everything())
+}
+
+# Domanda 6: Lo Stato in cui è stato registrato il film/serie influenza sull'assegnazione del rating?
+# Ho usato le stesse precondizioni della domanda 4
+# Inoltre dopo aver ottenuto le "risposte" per la mia domanda ho fatto un ulteriore raggruppamento per ottenere un grafico più significativo e pulito.
+ElencoListed <-
+    netflix$country
+ElencoListed<-str_split_fixed(ElencoListed, ",", 12)
+ElencoListed<-as.data.frame(ElencoListed)
+  #View(ElencoListed)
+ElencoListed<- inserimentoID(ElencoListed)
+copiaDataSet <- netflix
+copiaDataSet<- copiaDataSet[-c(1,3,4,5,6,7,8,10,11,12)]
+#View(copiaDataSet)
+copiaDataSet <-inserimentoID(copiaDataSet)
+colnames(ElencoListed)<- c("id","country1","country2","country3","country4","country5","country6","country7","country8","country9","country10","country11","country12")
+#eliminazione country none
+ElencoListed<-
+ElencoListed%>%
+  filter(country1!="none")%>%
+  select(everything())
+
+#seleziono solo film
+
+copiaDataSet<-
+copiaDataSet%>%
+  filter(type=="Movie")%>%
+  select(everything())
+
+
+copiaDataSet<-
+  inner_join(copiaDataSet,ElencoListed) # by id
+
+
+#operazioni per lavorare in maniera isolata sul caso descritto all'inzio
+  #copiaDataSet
+  casoIsolato1<-
+    copiaDataSet%>%
+    group_by(country1)%>%
+    summarise(count = n(),media=median(rating))
+
+  #View(casoIsolato1)
+  casoIsolato2<-
+    copiaDataSet%>%
+    filter(country2!="")%>%
+    group_by(country2)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato2)
+  casoIsolato3<-
+    copiaDataSet%>%
+    filter(country3!="")%>%
+    group_by(country3)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato3)
+  casoIsolato4<-
+    copiaDataSet%>%
+    filter(country4!="")%>%
+    group_by(country4)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato4)
+  casoIsolato5<-
+    copiaDataSet%>%
+    filter(country5!="")%>%
+    group_by(country5)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato5)
+  casoIsolato6<-
+    copiaDataSet%>%
+    filter(country6!="")%>%
+    group_by(country6)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato6)
+  casoIsolato7<-
+    copiaDataSet%>%
+    filter(country7!="")%>%
+    group_by(country7)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato7)
+  casoIsolato8<-
+    copiaDataSet%>%
+    filter(country8!="")%>%
+    group_by(country8)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato8)
+  casoIsolato9<-
+    copiaDataSet%>%
+    filter(country9!="")%>%
+    group_by(country9)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato9)
+  casoIsolato10<-
+    copiaDataSet%>%
+    filter(country10!="")%>%
+    group_by(country10)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato10)
+  casoIsolato11<-
+    copiaDataSet%>%
+    filter(country11!="")%>%
+    group_by(country11)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato11)
+  casoIsolato12<-
+    copiaDataSet%>%
+    filter(country12!="")%>%
+    group_by(country12)%>%
+    summarise(count = n(),media=median(rating))
+  #View(casoIsolato12)
+   #zona join
+  colnames(casoIsolato1)<- c("country","count1","media1")
+  colnames(casoIsolato2)<- c("country","count2","media2")
+  colnames(casoIsolato3)<- c("country","count3","media3")
+  colnames(casoIsolato4)<- c("country","count4","media4")
+  colnames(casoIsolato5)<- c("country","count5","media5")
+  colnames(casoIsolato6)<- c("country","count6","media6")
+  colnames(casoIsolato7)<- c("country","count7","media7")
+  colnames(casoIsolato8)<- c("country","count8","media8")
+  colnames(casoIsolato9)<- c("country","count9","media9")
+  colnames(casoIsolato10)<- c("country","count10","media10")
+  colnames(casoIsolato11)<- c("country","count11","media11")
+  colnames(casoIsolato12)<- c("country","count12","media12")
+  #rimozione spazio davanti per confronto2 e confronto3
+  casoIsolato2<-
+    casoIsolato2%>%
+    select(country,count2,media2)%>%
+    mutate(country = substr(casoIsolato2$country,2,nchar(casoIsolato2$country)))
+  casoIsolato3<-
+    casoIsolato3%>%
+    select(country,count3,media3)%>%
+    mutate(country = substr(casoIsolato3$country,2,nchar(casoIsolato3$country)))
+  casoIsolato4<-
+    casoIsolato4%>%
+    select(country,count4,media4)%>%
+    mutate(country = substr(casoIsolato4$country,2,nchar(casoIsolato4$country)))
+  casoIsolato5<-
+    casoIsolato5%>%
+    select(country,count5,media5)%>%
+    mutate(country = substr(casoIsolato5$country,2,nchar(casoIsolato5$country)))
+  casoIsolato6<-
+    casoIsolato6%>%
+    select(country,count6,media6)%>%
+    mutate(country = substr(casoIsolato6$country,2,nchar(casoIsolato6$country)))
+  casoIsolato7<-
+    casoIsolato7%>%
+    select(country,count7,media7)%>%
+    mutate(country = substr(casoIsolato7$country,2,nchar(casoIsolato7$country)))
+  casoIsolato8<-
+    casoIsolato8%>%
+    select(country,count8,media8)%>%
+    mutate(country = substr(casoIsolato8$country,2,nchar(casoIsolato8$country)))
+  casoIsolato9<-
+    casoIsolato9%>%
+    select(country,count9,media9)%>%
+    mutate(country = substr(casoIsolato9$country,2,nchar(casoIsolato9$country)))
+  casoIsolato10<-
+    casoIsolato10%>%
+    select(country,count10,media10)%>%
+    mutate(country = substr(casoIsolato10$country,2,nchar(casoIsolato10$country)))
+  casoIsolato11<-
+    casoIsolato11%>%
+    select(country,count11,media11)%>%
+    mutate(country = substr(casoIsolato11$country,2,nchar(casoIsolato11$country)))
+  casoIsolato12<-
+    casoIsolato12%>%
+    select(country,count12,media12)%>%
+    mutate(country = substr(casoIsolato12$country,2,nchar(casoIsolato12$country)))
+  
+  
+  #join tabella finale con i casi uniti
+  TabellaCasiUniti <- full_join( casoIsolato1, casoIsolato2)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato3)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato4)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato5)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato6)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato7)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato8)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato9)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato10)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato11)
+  TabellaCasiUniti <- full_join(TabellaCasiUniti, casoIsolato12)
+ View(TabellaCasiUniti)
+  #gestione dei valori NA trasformandoli in 0
+  TabellaCasiUniti<- 
+      mutate_all(TabellaCasiUniti, ~replace(.,is.na(.),0))
+  
+  
+  #fare media ponderata
+  #media ponderata
+  TabellaCasiUniti<-
+    TabellaCasiUniti%>%
+    mutate(Totale = count1+count2+count3+count4+count5+count6+count7+count8+count9+count10+count11+count12,Media_Ponderata=(1/Totale)*((count1*media1)+(count2*media2)+(count3*media3)+(count4*media4)+(count5*media5)+(count6*media6)+(count7*media7)+(count8*media8)+(count9*media9)+(count10*media10)+(count11*media11)+(count12*media12)))%>%
+    select(country:media3,Totale,Media_Ponderata)
+  
+   #eliminazione colonne inutili
+  TabellaCasiUniti <- TabellaCasiUniti[-c(2:7)]
+
+  #data set con numero totale di trasmissioni trasmesse per tipologia e loro rating 
+  View(TabellaCasiUniti)
+  
+  
+  #approssimazione a due cifre decimali
+  TabellaCasiUniti<-
+  TabellaCasiUniti%>%
+    mutate(Media_Ponderata=round(Media_Ponderata,digits = 2))%>%
+    select(country,Totale,Media_Ponderata)
+  
+  # LAVORO CON SHINY
+  
+  #per non appesantire il programma e renderlo complesso faccio questa operazione manualmente:
+  # obiettivo: classificare gli Stati nei loro rispettivi continenti per poter rappresentare in maniera
+  # più sintetica il grafico Rating x Nazioni
+  
+  continenti <- c("Americhe","Oceania","Europa","Asia","Europa","Americhe","Europa","Asia","Americhe","Americhe","Asia","Americhe","Europa","Europa","Europa","Americhe","Africa","Europa","Europa","Asia","Europa","Africa","Americhe","Asia","Europa","Europa","Asia","Asia","Asia","Europa","Asia","Europa","Asia","Asia","Asia","Americhe","Europa","Oceania","Africa","Europa","Asia","Americhe","Americhe","Asia","Europa","Europa","Europa","Europa","Asia","Europa","Asia","Europa","Africa","Africa","Asia","Europa","Europa","Europa","Europa","Asia","Asia","Europa","Asia","Europa","Americhe","Americhe","Americhe","Asia","Europa","Asia","Americhe","Africa","Europa","Europa","Asia","Asia","Asia","Africa","Europa","Africa","Europa","Africa","Africa","Africa","Americhe","Asia","Africa","Europa","Asia","Europa","Europa","Africa","Europa","Americhe","Oceania","Africa","Americhe","Europa","Europa","Europa","Americhe","Africa","Asia","Asia")
+       
+ TabellaCasiUniti<- TabellaCasiUniti%>%
+                    mutate(Continente = continenti)%>%
+                    select(country,Continente,Totale,Media_Ponderata)
+  
+ uiPlotly <- fluidPage(
+  titlePanel("Stati x Continente"),
+  sidebarLayout(
+    sidebarPanel(
+      #Genere Input
+     selectInput("continent","Seleziona il continente",
+                 choices = list("Americhe","Oceania","Europa","Asia"),
+                 selected="Americhe")
+    ),
+    mainPanel(
+      plotlyOutput("plot")
+    )
+  )
+)
+ 
+ serverPlotly <- function(input,output){
+       output$plot <- renderPlotly({
+         dataset <- TabellaCasiUniti%>%
+           filter(Continente==input$continent)%>% 
+           select(country,Media_Ponderata)
+         plot1 <- plot_ly(
+           x = dataset$country,
+           y = dataset$Media_Ponderata,
+           type = 'bar'
+         )
+       })
+ }
+ 
+ shinyApp(uiPlotly,serverPlotly)
+     
+  #stato dove è stato piu apprezzato film
+  TabellaCasiUniti%>%
+    filter(Media_Ponderata==max(TabellaCasiUniti$Media_Ponderata))%>%
+    select(country)
+  
+  # Ukraine 8.3
+  
+  #Stato più successo per continente
+  
+  Europa <- TabellaCasiUniti%>%
+            filter(Continente=="Europa")%>%
+            select(everything())
+  
+  TabellaCasiUniti%>%
+    filter(Continente=="Europa" & Media_Ponderata==max(Europa$Media_Ponderata))%>%
+    select(country,Totale,Media_Ponderata)
+  
+  # Ukraine	1	8.3	
+  
+  Oceania <- TabellaCasiUniti%>%
+            filter(Continente=="Oceania")%>%
+            select(everything())
+ TabellaCasiUniti%>%
+    filter(Continente=="Oceania" & Media_Ponderata==max(Oceania$Media_Ponderata))%>%
+    select(country,Totale,Media_Ponderata)
+ 
+ # Samoa	1	7.7	
+ 
+ Asia <- TabellaCasiUniti%>%
+            filter(Continente=="Asia")%>%
+            select(everything())
+ TabellaCasiUniti%>%
+    filter(Continente=="Asia" & Media_Ponderata==max(Asia$Media_Ponderata))%>%
+    select(country,Totale,Media_Ponderata)
+ 
+ # Lebanon	2	7.65	
+ 
+ Americhe <- TabellaCasiUniti%>%
+            filter(Continente=="Americhe")%>%
+            select(everything())
+ TabellaCasiUniti%>%
+    filter(Continente=="Americhe" & Media_Ponderata==max(Americhe$Media_Ponderata))%>%
+    select(country,Totale,Media_Ponderata)
+ 
+ # Bermuda	1	8.1		
+ # Ecuador	1	8.1	
+ 
+ # Stato meno successo per continente
+ 
+ TabellaCasiUniti%>%
+    filter(Continente=="Europa" & Media_Ponderata==min(Europa$Media_Ponderata))%>%
+    select(country,Totale,Media_Ponderata)
+
+ # Bulgaria	8	5.76	
+ 
+  TabellaCasiUniti%>%
+    filter(Continente=="Oceania" & Media_Ponderata==min(Oceania$Media_Ponderata))%>%
+    select(country,Totale,Media_Ponderata)
+  
+  # Australia	76	6.55	
+  
+  TabellaCasiUniti%>%
+    filter(Continente=="Asia" & Media_Ponderata==min(Asia$Media_Ponderata))%>%
+    select(country,Totale,Media_Ponderata)
+  
+  # Iraq	2	3.85	
+  
+  TabellaCasiUniti%>%
+    filter(Continente=="Americhe" & Media_Ponderata==min(Americhe$Media_Ponderata))%>%
+    select(country,Totale,Media_Ponderata)
+  
+  # Colombia	13	5.22		 
+  
+ 
+```
+
+#CONCLUSIONI:
+Domanda 1: Il rating dei film/Tv Show è "influenzato" dalla durata di quest'ultimo? 
+--Tv Show--
+Osservando il grafico possiamo notare una netta differenza tra i vari TV Show con durata delle season differenti.
+Infatti vediamo che Show di poche season sono quotati molto poco rispetto agli altri. Con l'aumentare delle season vediamo un 
+andamento molto stabile, quindi si potrebbe dire ottimale e che il rating è influenzato dalla durata dello show.
+Inoltre vediamo una descrescita dell'andamento del grafico verso le 13 Season, forse questo dovuto a decisioni sbagliate nella gestione della trama dello show?
+
+--Movie--
+Osservando l'andamento del grafico possiamo notare una situazione molto simile a quella dello show, infatti vediamo che i film
+di "breve" durata (eg <50) non hanno un andamento costante,ma presentano degli sbalzi nel grafico;cosa che non succede nei film con durata oltre i 70.
+
+
+Domanda 2: I film vecchi sono più quotati rispetto a quelli nuovi?
+Dal grafico possiamo rilevare i rating assegnati ai film dei diversi anni: facendo un analisi più approffondita, possiamo notare che i film degli anni 50 sono 
+più apprezzati rispetto agli altri.
+Inolte, effettuando una predizione sulla valutazione, risulta che essa va calando con l'avanzare del tempo.
+Facendo delle analisi aggiuntive ho ricavato in quale decade in cui i film sono usciti hanno ricevuto una valutazione più alta rispetto agli alti,confermando che i film degli anni 50-60 sono quelli che hanno ricevuto una valutazione più alta rispetto agli altri.
+
+Domanda 3: Su netflix quale "genere" è più seguito?
+Raggruppando tutti i movie e tv show presenti nel data set, ed effettuando la rappresentazione boxplot posso rilevare che il genere Movie è quello più quotato. 
+Per i grafici ho usato la rappresentazione Boxplot classica e anche la rappresentazione dei grafici interattivi Shiny.
+Considerazione possibile: i Movie sono più seguiti perchè nel dataset sono presenti molti più film rispetto ai tv show.
+ 
+Domanda 4: Che genere di film viene più apprezzato? 
+Vedendo il grafico ed interagendo con esso possiamo  vedere tutte le categorie e rating associato.
+In base al prospetto possiamo asserire che i film della piattaforma Netflix più apprezzati sono quelli Classici.
+Inoltre eseguendo questa analisi ho ottenuto molte altre informazioni che possono essermi utili a scopo personale: la scoperta di generi di film che non avevo considerato, ma che dopo questa analisi mi incuriosiscono e quindi probabilmente andrò a vedere prossimamente. Ho ricavato dal dataset analizzato la categoria con più trasmissioni, quella meno apprezzata con relativo rating e molte altre informazioni relative ad esso:
+                   Categoria             n.    rating
+- Più apprezzata:  Classic Movies	      84	  7.42
+- Più trasmissioni:International Movies	1927	6.59
+- Meno apprezzata: Horror Movies	      262	  5.78
+- Meno trasmissioni: Anime Features	    45	  7.18
+
+Domanda 5: Che genere di TV Show viene più apprezzato?
+Vedendo il grafico ed interagendo con esso possiamo vedere tutte le categorie dei TV SHOW.
+Possiamo notare chiaramente che la categoria con un rating maggiore è quella "Classic & Cult TV".
+Inoltre come per i film ho ottenuto ulteriori informazioni:
+                       Categoria                      n.    rating
+- Più apprezzata:      Classic & Cult TV	 	          24    8.22
+- Più trasmissioni:    International TV Shows	        1001	7.43
+- Meno apprezzata:     Stand-Up Comedy & Talk Shows	  42    5.9
+- Meno trasmissioni:   TV Shows	                      10	  6.1
+
+Domanda 6: Lo Stato in cui è stato registrato il film/serie influenza sull'assegnazione del rating?
+Quando mi sono posto questa domanda mi sono chiesto se esiste una  relazione tra Paese di produzione e film con un rating alto e se esiste un possibile fattore in esso che influenza il pubblico.
+Ho analizzato il rating dei film prodotti dai vari Paesi nei rispettivi continenti.Ne ho dedotto che il rating più alto è stato raggiunto dai seguenti Paesi:
+
+- Americhe:
+   ~ Bermuda  
+   ~ Ecuador  
+- Oceania:
+   ~ Samoa  
+- Europa: 
+   ~ Ukraina  
+- Asia:
+   ~ Lebano
+   
+Da questo ne deduco che l'ambientazione in cui viene girato un film influenza la visibilità dello stesso.
+
+Quindi:
+con questa analisi ho potuto constatare che:
+ - il rating è influenzato dalla durata della trasmissione(per entrambe le tipologie);
+ - i film d'epoca sono più apprezzati rispetto ai film recenti, con un picco relativo ai film degli anni 50;
+ - i film è il genere più seguito sulla piattaforma Netflix;
+ - la categoria più apprezzata tra i film è quella "Classic", quella con più trasmissioni è l' "International Movies" mentre categoria meno apprezata è "l'Horror";
+ - la categoria più apprezzata tra gli Show è quella "classic & Cult", quella con più trasmissioni è l' "Internatinal TV Show" mentre categoria meno apprezzata è la "Stand-UP Comedy";
+ da questa analisi possiamo dire che nella piattaforma Netflix la categoria più popolare è quella classica.
+ - esiste un rapporto tra Paese dove è stato realizzato il film e la preferenza che viene assegnata dal pubblico.
+
+
+
