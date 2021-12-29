@@ -28,27 +28,27 @@ knitr::opts_chunk$set(cache = FALSE, message = FALSE, warning = FALSE)
 # Analisi:
 
 <b>CASO DI STUDIO:</b> NETFLIX data with IMDB scores added
-Data Set contenente tutte le informazioni relative ai video multimediali, compresi i valori assegnati dal IMDB, dei film/Tv Show della piattaforma Netflix. 
+Data Set, contenente tutte le informazioni relative ai video multimediali, compresi i valori assegnati dal IMDB, dei film/Tv Show della piattaforma Netflix. 
 
-IMDB -> Internet Movie DataBase che è un sito web di proprietà di Amazon che gestiste informazioni su film,attori, registi, programmi televisivi.
+<b>IMDB</b> -> Internet Movie DataBase che è un sito web di proprietà di Amazon che gestiste informazioni su film,attori, registi, programmi televisivi.
 
-Lettura del DataSet:
+<b>Lettura del DataSet:</b>
 
 ```{r import}
 #lettura del data set "netflixRating.csv"
 netflix <- read_csv("netflixRating.csv")
-#rappresentazione in output del tipo delle colonne del data set netflix
+#rappresentazione in output del tipo delle colonne del data set netflix, per vedere il formato dei dati presenti all'interno:
 spec(netflix)
 ```
  
 Mi sono posto diverse domande per analizzare questo caso di studio:
  
- + 1) Il rating dei film/Tv Show è “influenzato” dalla durata di quest’ultimo? ESEMPIO: Movie e TV Show
- + 2) I film vecchi sono più quotati rispetto a quelli nuovi?
- + 3) Su netflix quale "genere" è più seguito? ESEMPIO: Movie vs TV Show 
- + 4) Che genere di film viene più apprezzato? 
- + 5) Che genere di TV Show viene più apprezzato?
- + 6) Lo Stato in cui è stato registrato il film/serie influenza sull'assegnazione del rating?
+ 1. Il rating dei film/Tv Show è “influenzato” dalla durata di quest’ultimo? ESEMPIO: Movie e TV Show
+ 2. I film vecchi sono più quotati rispetto a quelli nuovi?
+ 3. Su netflix quale "genere" è più seguito? ESEMPIO: Movie vs TV Show 
+ 4. Che genere di film viene più apprezzato? 
+ 5. Che genere di TV Show viene più apprezzato?
+ 6. Lo Stato in cui è stato registrato il film/serie influenza sull'assegnazione del rating?
 
 
 Per il fine di alcune domande ho sfruttato le due categorie principali presenti nel dataset e salvate in due variabili distinte. Questo mi serve principalmente per avere una idea generale di come è composto il dataset che sto analizzando.
@@ -67,13 +67,15 @@ Tv_Show <-
   group_by(duration)%>%
   summarise(median_rating = median(rating))
 
-#SEPARAZIONE DEL DATO DURATA PER ENTRAMBI I "GRUPPI" PER TRASFORMARE IL DATO DURATA IN INTERO(VEDERE COMANDO SOPRA spec(netflix)).
-#Effettuo una separazione della colonna duration in NUMERO INTERO Durata e char Descrizione
+#SEPARAZIONE DEL DATO DURATA PER ENTRAMBI I "GRUPPI" PER TRASFORMARE IL DATO DURATA IN INTERO(VEDERE COMANDO 
+#SOPRA spec(netflix)).
+#Effettuo una separazione della colonna "duration" in NUMERO INTERO Durata e char Descrizione
 
 Tv_Show<-
 separate(Tv_Show,duration,into = c("Season","Descrizione"),sep=" ")
 
-#eliminazione colonna descrizione, essendo una specificazione del dato intero futile, siccome sappiamo già che per i film parliamo di durata in minuti mentre per gli show in season
+# eliminazione colonna "descrizione", essendo una specificazione del dato intero futile, siccome sappiamo già che
+# per i film parliamo di durata in minuti mentre per gli show in season
 
 Tv_Show$Descrizione <- NULL
 
@@ -108,7 +110,8 @@ transform(Movie,Durata = as.numeric(Durata))
 
 # massimo e minimo del rating dei film presenti nel data set:
 
-# Il procedimento è analogo per tutte e due le analisi e consiste nel controllare la corettezza dei dati rappresentandoli per ordine crescente per la loro durata.
+# Il procedimento è analogo per tutte e due le analisi e consiste nel controllare la corettezza dei dati
+# rappresentandoli per ordine crescente per la loro durata.
 # Successivamente viene effettuata una rappresentazione grafica per rappresentare il risultato.
 
 # rating range [0.0 - 10.0]
@@ -166,10 +169,13 @@ ggplot(MovieOrdinati,aes(Durata,median_rating)) +
   xlab("Durata")+
   ylab("Rating")
 
-# le due variabili ordinate servono sia per rispondere alla prima domanda che per vedere sempre come è composto il dataset. Soprattutto per vedere se ci sono delle incosistenze o 
-# errori nei dati all'interno del dataset (come nel caso dei rating a valore 0 nel caso dei movie). Alla  fine di questo controllo, ho interpretato la presenza di valori del rating
-# 0 come il loro rating effettivo. Perchè soltanto i movie con breve durata hanno questa "anomalia", quindi può essere interpretato come una possibile risposta della domanda  che
-# mi sono posto.
+# le due variabili ordinate servono sia per rispondere alla prima domanda che per vedere sempre come è composto
+# il dataset. Soprattutto per vedere se ci sono delle incosistenze o errori nei dati all'interno del dataset 
+# (come nel caso dei rating a valore 0 nel caso dei movie).
+# Alla  fine di questo controllo, ho interpretato la presenza di valori del rating 0 come il loro 
+# rating effettivo.
+# Perchè soltanto i movie con breve durata hanno questa "anomalia", quindi può essere interpretato come una
+# possibile risposta della domanda  che mi sono posto.
 ```
 
 <b>2) I film vecchi sono più quotati rispetto a quelli nuovi?</b>
@@ -177,9 +183,11 @@ ggplot(MovieOrdinati,aes(Durata,median_rating)) +
 ```{r}
 # Domanda 2: I film vecchi sono più quotati rispetto a quelli nuovi?
 
-# Per questa analisi viene preso in considerazione solo il genere film, vengono inoltre effettuate diverse rappresentazioni grafiche per analizzare il problema.
+# Per questa analisi viene preso in considerazione solo il genere film, vengono inoltre effettuate diverse 
+# rappresentazioni grafiche per analizzare il problema.
 # Olre alle rappresentazioni grafiche viene calcolata la predizione dei rating.
-# Per rispondere ad una parte della domanda viene inoltre effettuato un raggrupamento per anni di rilascio del film ( per decadi ) e rappresentato in output.
+# Per rispondere ad una parte della domanda viene inoltre effettuato un raggrupamento per anni di rilascio dei 
+# film ( per decadi ) e rappresentato in output.
 
 # viene applicato un filtro solo per selezionare i Movie
 #raggruppamento per anno con relativa media del rating
@@ -341,7 +349,8 @@ plot(RappresentazioneFinale)
 ```{r}
 # Domanda 3: Su netflix quale "genere" è più seguito? ESEMPIO: Movie vs TV Show
 
-# Per questa domanda vengono calcolate le rispettive medie dei rating per il rispettivo Genere. Dopodiché viene eseguita una rappresentazione boxplot tramite shiny,
+# Per questa domanda vengono calcolate le rispettive medie dei rating per il rispettivo Genere. Dopodiché viene 
+# eseguita una rappresentazione boxplot tramite shiny,
 # dove vengono rappresentati i due generi presenti nel caso di studi.
 
 # ottengo i rating medi dei due generi 
@@ -414,7 +423,8 @@ shinyApp(ui = ui, server = server)
 # Per gestire questo problema ho deciso di considerare che se un film ha più di un elemento nell'elenco listed_in, e.g [Children & Family Movies, Comedies]
 # considero quel film due volte col il rating assegnato "duplicato". Cioè quando effettuerò un raggrupamento per quella determinata categoria verrà contanto due volte
 # una per Children & Family Movies e una per Comedies. Analizzando il data set ho notato che un film può avere al massimo tre elementi nell'elenco
-# alla fine dell' analisi di questo caso effettuerò una media ponderata dei tre gruppi che verranno raggruppati in un unico gruppo
+# alla fine dell' analisi di questo caso effettuerò una media ponderata dei tre gruppi che verranno raggruppati 
+# in un unico gruppo
 
   ElencoListed <-
     netflix$listed_in
@@ -1169,9 +1179,8 @@ copiaDataSet<-
     filter(Continente=="Americhe" & Media_Ponderata==min(Americhe$Media_Ponderata))%>%
     select(country,Totale,Media_Ponderata)
   
-  # Colombia	13	5.22		 
+  # Colombia	13	5.22	
   
- 
 ```
 
 <b>CONCLUSIONI:</b>
@@ -1191,9 +1200,9 @@ di "breve" durata (eg <50) non hanno un andamento costante,ma presentano degli s
 
 - <b>Domanda 2: I film vecchi sono più quotati rispetto a quelli nuovi?</b>
 
-Dal grafico possiamo rilevare i rating assegnati ai film dei diversi anni: facendo un analisi più approffondita, possiamo notare che i film degli anni 50 sono quellipiù apprezzati rispetto agli altri.
-Inolte, effettuando una predizione sulla valutazione, risulta che essa va calando con l'avanzare del tempo.
-Facendo delle analisi aggiuntive ho ricavato in quale decade in cui i film sono usciti hanno ricevuto una valutazione più alta rispetto agli alti,confermando che i film degli anni 50-60 sono quelli che hanno ricevuto una valutazione più alta rispetto agli altri.
+Dal grafico possiamo rilevare i rating assegnati ai film dei diversi anni: facendo un analisi più approffondita, possiamo notare che i film degli anni 50 sono quelli più apprezzati rispetto agli altri.
+Inoltre, effettuando una predizione sulla valutazione, risulta che essa va calando con l'avanzare del tempo.
+Facendo delle analisi aggiuntive ho ricavato in quale decade in cui i film sono usciti hanno ricevuto una valutazione più alta rispetto agli altri,confermando che i film degli anni 50-60 sono quelli che hanno ricevuto una valutazione più alta rispetto agli altri.
 
 - <b>Domanda 3: Su netflix quale "genere" è più seguito?</b>
 
@@ -1207,12 +1216,12 @@ Vedendo il grafico ed interagendo con esso possiamo  vedere tutte le categorie e
 In base al prospetto possiamo asserire che i film della piattaforma Netflix più apprezzati sono quelli Classici.
 Inoltre eseguendo questa analisi ho ottenuto molte altre informazioni che possono essermi utili a scopo personale: la scoperta di generi di film che non avevo considerato, ma che dopo questa analisi mi incuriosiscono e quindi probabilmente andrò a vedere prossimamente. Ho ricavato dal dataset analizzato la categoria con più trasmissioni, quella meno apprezzata con relativo rating e molte altre informazioni relative ad esso:
 
-Tipo           | Categoria      | numero | rating
--------------- | -------------- | ------ | ------
-Più apprezzata | Classic Movies | 84     | 7.42
-Più trasmis.   | InternationalM.| 1927   | 6.59
-Meno apprezzata| Horror Movies  | 262    | 5.78
-Meno trasmis.  | Anime Features | 45     | 7.18
+Tipo               | Categoria      | numero | rating
+------------------ | -------------- | ------ | ------
+Più apprezzata     | Classic Movies | 84     | 7.42
+Più trasmissioni   | InternationalM.| 1927   | 6.59
+Meno apprezzata    | Horror Movies  | 262    | 5.78
+Meno trasmissioni  | Anime Features | 45     | 7.18
 
 
 - <b>Domanda 5: Che genere di TV Show viene più apprezzato?</b>
@@ -1222,12 +1231,12 @@ Possiamo notare chiaramente che la categoria con un rating maggiore è quella "C
 Inoltre come per i film ho ottenuto ulteriori informazioni:
 
 
-Tipo           | Categoria                  | numero | rating
--------------- | ---------------------------| ------ | ------
-Più apprezzata | Classic & Cult TV          | 24     | 8.22
-Più trasmis.   | International TV Shows     | 1001   | 7.43
-Meno apprezzata| Stand-Up Comedy & Talk Show| 42     | 5.9
-Meno trasmis.  | TV Shows                   | 10     | 6.1
+Tipo               | Categoria                  | numero | rating
+------------------ | ---------------------------| ------ | ------
+Più apprezzata     | Classic & Cult TV          | 24     | 8.22
+Più trasmissioni   | International TV Shows     | 1001   | 7.43
+Meno apprezzata    | Stand-Up Comedy & Talk Show| 42     | 5.9
+Meno trasmissioni  | TV Shows                   | 10     | 6.1
 
 
 - <b>Domanda 6: Lo Stato in cui è stato registrato il film/serie influenza sull'assegnazione del rating?</b>
@@ -1244,7 +1253,7 @@ Ho analizzato il rating dei film prodotti dai vari Paesi nei rispettivi continen
     + Ukraina  
   - Asia:
     + Lebano
-   
+    
 Da questo ne deduco che l'ambientazione in cui viene girato un film influenza la visibilità dello stesso,essendo tutti dei posti molto conosciuti.
 
 <b>Quindi con questa analisi ho potuto constatare che:</b>
